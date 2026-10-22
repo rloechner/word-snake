@@ -1,7 +1,3 @@
-# SlitherClue 🐍
+# SlitherClue has moved
 
-Snake + maze + word search + crossword. Eat letters, spell the crossword answers with your body, fill the grid. A new Daily Puzzle every day.
-
-**Play:** https://rloechner.github.io/word-snake/
-
-Controls: arrow keys / WASD or swipe · Space/P to pause.
+New home: https://github.com/rloechner/slitherclue — play at https://rloechner.github.io/slitherclue/
