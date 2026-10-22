@@ -1,13 +1,13 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <meta name="description" content="Snake + maze + word search + crossword. Eat letters, spell the answers, fill the grid. New Daily Puzzle every day.">
-<meta property="og:type" content="website"><meta property="og:url" content="https://rloechner.github.io/word-snake/"><meta property="og:title" content="Word Snake 🐍 — Daily Puzzle">
+<meta property="og:type" content="website"><meta property="og:url" content="https://rloechner.github.io/word-snake/"><meta property="og:title" content="SlitherClue 🐍 — Daily Puzzle">
 <meta property="og:description" content="Snake + maze + word search + crossword. Eat letters, spell the answers, fill the grid. New puzzle every day.">
 <meta property="og:image" content="https://rloechner.github.io/word-snake/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
-<meta name="twitter:card" content="player"><meta name="twitter:title" content="Word Snake 🐍 — Daily Puzzle">
+<meta name="twitter:card" content="player"><meta name="twitter:title" content="SlitherClue 🐍 — Daily Puzzle">
 <meta name="twitter:description" content="Snake + maze + word search + crossword. Eat letters, spell the answers, fill the grid.">
 <meta name="twitter:image" content="https://rloechner.github.io/word-snake/og.png"><meta name="twitter:player" content="https://rloechner.github.io/word-snake/">
 <meta name="twitter:player:width" content="500"><meta name="twitter:player:height" content="700">
-<title>Word Snake</title>
+<title>SlitherClue</title>
 <style>select{background:#3a4680;color:#e9ecff;border:0;border-radius:6px;padding:4px 6px;font-size:13px}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at 30% 20%,#23305a,#0e1224);color:#e9ecff;min-height:100vh;display:flex;flex-direction:column;align-items:center}
 h1{margin:14px 0 4px;font-size:28px;letter-spacing:2px}h1 span{color:#7cf29a}
@@ -26,7 +26,7 @@ button.alt{background:#3a4680;color:#e9ecff}.hidden{display:none}
 @media (pointer:coarse){#pad{display:grid}}
 @media (max-width:620px){body{overflow-x:hidden}canvas{width:min(94vw,calc(56vh*17/13))}h1{margin:6px 0 2px;font-size:22px}#hud{gap:8px;font-size:13px;flex-wrap:wrap;justify-content:center}#main{gap:10px}#side{min-width:0;width:94vw;padding:10px}.c{width:28px;height:28px;font-size:15px}.ov p{font-size:13px;margin:6px 0}.ov h2{margin:4px 0}.ov{padding:10px}button{padding:8px 14px;font-size:14px}}
 .stats{font-size:13px;opacity:.8;margin-top:6px}</style></head><body>
-<h1>WORD<span>SNAKE</span></h1>
+<h1>Slither<span>Clue</span></h1>
 <div id="hud"><span id="lvl"></span><span>⏱ <b id="time">0:00</b></span><span>Score: <b id="score">0</b></span><label style="font-size:13px">Speed <select class="spd"><option value="400">Slow</option><option value="250">Normal</option><option value="165">Fast</option></select></label><button class="alt" id="pause" style="padding:4px 12px;font-size:13px">Pause</button><button class="alt" id="restart" style="padding:4px 12px;font-size:13px">Restart</button></div>
 <div id="main"><div id="wrap"><canvas id="cv" tabindex="0"></canvas>
 <div class="ov" id="ov"><h2 id="ovt">How to play</h2><p id="ovp">Steer the snake with <b>arrow keys / WASD</b> (or swipe).<br>Eat letters to add them to your body, in order.<br>When the most recent letters you ate spell a crossword answer, the word locks into the puzzle and those letters fall off.<br>Hit a wall or yourself and it's over. Fill the whole crossword to win!</p><div id="ovb"></div><label style="margin-top:10px;font-size:14px">Speed: <select class="spd"><option value="400">Slow</option><option value="250">Normal</option><option value="165">Fast</option></select></label></div></div>
@@ -85,7 +85,7 @@ function end(win){clearInterval(timer);clearInterval(tick);state='over';draw();t
  st.best=st.best||{};const nb=score>(st.best[key]||0);if(nb)st.best[key]=score;
  if(L.daily&&win&&st.lastDaily!==DAYNUM){st.streak=(st.lastDaily===DAYNUM-1?(st.streak||0):0)+1;st.lastDaily=DAYNUM;st.maxStreak=Math.max(st.maxStreak||0,st.streak)}
  saveSt();
- const title=L.daily?`Word Snake #${DAYNUM}`:`Word Snake · ${L.name}`;
+ const title=L.daily?`SlitherClue #${DAYNUM}`:`SlitherClue · ${L.name}`;
  const share=`${title} 🐍\n${solved.map(x=>x?'🟩':'⬛').join('')} ${nS}/${nW} words${win?' ✅':' 💥'}\nScore ${score} · ⏱ ${fmt(tEnd)}${L.daily&&st.streak?` · 🔥${st.streak}`:''}\n${URL}`;
  const last=li===LEVELS.length-1;
  const btns=[['📋 Share',e=>copy(share,e.target)],['Post to X',()=>window.open('https://x.com/intent/post?text='+encodeURIComponent(share),'_blank','noopener')]];

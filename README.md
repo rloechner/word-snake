@@ -1,4 +1,4 @@
-# Word Snake 🐍
+# SlitherClue 🐍
 
 Snake + maze + word search + crossword. Eat letters, spell the crossword answers with your body, fill the grid. A new Daily Puzzle every day.
 
