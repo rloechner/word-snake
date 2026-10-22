@@ -7,6 +7,7 @@
 <meta name="twitter:description" content="Snake + maze + word search + crossword. Eat letters, spell the answers, fill the grid.">
 <meta name="twitter:image" content="https://rloechner.github.io/word-snake/og.png"><meta name="twitter:player" content="https://rloechner.github.io/word-snake/">
 <meta name="twitter:player:width" content="500"><meta name="twitter:player:height" content="700">
+<meta name="build" content="slitherclue-v2-prefix">
 <title>SlitherClue</title>
 <style>select{background:#3a4680;color:#e9ecff;border:0;border-radius:6px;padding:4px 6px;font-size:13px}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at 30% 20%,#23305a,#0e1224);color:#e9ecff;min-height:100vh;display:flex;flex-direction:column;align-items:center}
@@ -29,8 +30,8 @@ button.alt{background:#3a4680;color:#e9ecff}.hidden{display:none}
 <h1>Slither<span>Clue</span></h1>
 <div id="hud"><span id="lvl"></span><span>⏱ <b id="time">0:00</b></span><span>Score: <b id="score">0</b></span><label style="font-size:13px">Speed <select class="spd"><option value="400">Slow</option><option value="250">Normal</option><option value="165">Fast</option></select></label><button class="alt" id="pause" style="padding:4px 12px;font-size:13px">Pause</button><button class="alt" id="restart" style="padding:4px 12px;font-size:13px">Restart</button></div>
 <div id="main"><div id="wrap"><canvas id="cv" tabindex="0"></canvas>
-<div class="ov" id="ov"><h2 id="ovt">How to play</h2><p id="ovp">Steer the snake with <b>arrow keys / WASD</b> (or swipe).<br>Eat letters to add them to your body, in order.<br>When the most recent letters you ate spell a crossword answer, the word locks into the puzzle and those letters fall off.<br>Hit a wall or yourself and it's over. Fill the whole crossword to win!</p><div id="ovb"></div><label style="margin-top:10px;font-size:14px">Speed: <select class="spd"><option value="400">Slow</option><option value="250">Normal</option><option value="165">Fast</option></select></label></div></div>
-<div id="side"><b>Crossword</b><div id="cw"></div><ol id="clues"></ol><div style="margin-top:10px;font-size:13px;opacity:.7">Your snake spells (oldest → newest):</div><div id="body"></div>
+<div class="ov" id="ov"><h2 id="ovt">How to play</h2><p id="ovp">Steer the snake with <b>arrow keys / WASD</b> (or swipe).<br>Eat the <b>glowing</b> letters to spell a crossword answer in order (they stick to your body).<br>Wrong letters get spat out (−5). Letters already filled in by crossing words are supplied for you.<br>Finish a word and it locks into the puzzle. Hit a wall or yourself and it's over. Fill the whole crossword to win!</p><div id="ovb"></div><label style="margin-top:10px;font-size:14px">Speed: <select class="spd"><option value="400">Slow</option><option value="250">Normal</option><option value="165">Fast</option></select></label></div></div>
+<div id="side"><b>Crossword</b><div id="cw"></div><ol id="clues"></ol><div style="margin-top:10px;font-size:13px;opacity:.7">Spelling:</div><div id="body"></div>
 <div id="pad"><span></span><button data-d="0,-1">▲</button><span></span><button data-d="-1,0">◀</button><button data-d="0,1">▼</button><button data-d="1,0">▶</button></div></div></div>
 <script>
 const LEVELS=[
@@ -52,17 +53,28 @@ const st=JSON.parse(localStorage.getItem('wsStats')||'{}');function saveSt(){if(
 function fmt(ms){const s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
 addEventListener('pointerdown',()=>{window.focus()});
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),T=36;const $=id=>document.getElementById(id);
-let started=false,speed=+(localStorage.getItem('wsSpeed')||400),L,li=0,snake,dir,ndir,letters,tiles,solved,score=0,timer,state='menu',flash=0;
+let started=false,speed=+(localStorage.getItem('wsSpeed')||400),L,li=0,snake,dir,ndir,letters,tiles,solved,score=0,timer,state='menu',flash=0,spit=0,spitMsg='';
 const W=17,H=13;cv.width=W*T;cv.height=H*T;
 function wall(x,y){return L.map[y][x]==='#'}
 function occ(x,y){return snake.some(s=>s.x===x&&s.y===y)||tiles.some(t=>t.x===x&&t.y===y)}
-function spawn(ch){const h=snake[0];for(let k=0;k<500;k++){const x=1+Math.random()*(W-2)|0,y=1+Math.random()*(H-2)|0;
- if(wall(x,y)||occ(x,y)||Math.abs(x-h.x)+Math.abs(y-h.y)<3)continue;tiles.push({x,y,ch});return}}
-function refill(){const need={};L.words.forEach((w,i)=>{if(solved[i])return;const cnt={};for(const ch of w.w)cnt[ch]=(cnt[ch]||0)+1;for(const ch in cnt)need[ch]=Math.max(need[ch]||0,cnt[ch])});
- for(const ch in need){let have=tiles.filter(t=>t.ch===ch).length;while(have++<need[ch])spawn(ch)}
- const AB="ABCDEFGHIJKLMNOPRSTUVWY";while(tiles.length<Object.keys(need).length+5)spawn(AB[Math.random()*AB.length|0])}
+function reach(){const h=snake[0],body=new Set(snake.slice(1,-1).map(s=>s.x+','+s.y)),R=new Map([[h.x+','+h.y,0]]),q=[h];
+ while(q.length){const c=q.shift(),d=R.get(c.x+','+c.y);for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const x=c.x+dx,y=c.y+dy,k=x+','+y;if(wall(x,y)||body.has(k)||R.has(k))continue;R.set(k,d+1);q.push({x,y})}}return R}
+function spawn(ch,R){R=R||reach();const h=snake[0],ok=[];R.forEach((d,k)=>{const[x,y]=k.split(',').map(Number);if(d<3||occ(x,y))return;
+ for(let j=1;j<=3;j++)if(x===h.x+dir.x*j&&y===h.y+dir.y*j)return;ok.push([x,y])});if(!ok.length)return;const[x,y]=ok[Math.random()*ok.length|0];tiles.push({x,y,ch})}
+function revealed(){const s=new Set();L.words.forEach((w,i)=>{if(solved[i])cells(w).forEach(p=>s.add(p.r+','+p.c))});return s}
+function needed(i){const rv=revealed();return cells(L.words[i]).filter(p=>!rv.has(p.r+','+p.c)).map(p=>p.ch).join('')}
+function cands(){const b=letters.join('');return L.words.map((w,i)=>i).filter(i=>!solved[i]&&needed(i).startsWith(b))}
+function nextSet(){const b=letters.length;return new Set(cands().map(i=>needed(i)[b]).filter(Boolean))}
+function refill(){const R=reach(),nx=nextSet();
+ for(const ch of nx)if(!tiles.some(t=>t.ch===ch&&R.has(t.x+','+t.y)))spawn(ch,R);
+ let non=tiles.filter(t=>!nx.has(t.ch));while(non.length>3){const t=non.pop();tiles.splice(tiles.indexOf(t),1)}
+ const AB=[..."ABCDEFGHIJKLMNOPRSTUVWY"].filter(c=>!nx.has(c));while(non.length<2){spawn(AB[Math.random()*AB.length|0],R);non=tiles.filter(t=>!nx.has(t.ch));if(non.length<2&&tiles.length>40)break}}
+
+
+
+
 function load(i){li=i;L=i<0?DAILY:LEVELS[i];t0=0;tEnd=0;$('time').textContent='0:00';snake=[{x:8,y:6},{x:7,y:6}];if(wall(8,6)){snake=[{x:8,y:3},{x:7,y:3}]}
- dir={x:1,y:0};ndir=dir;letters=[];tiles=[];solved=L.words.map(()=>0);refill();buildCW();ui();draw()}
+ dir={x:1,y:0};ndir=dir;letters=[];tiles=[];spitMsg='';spit=0;solved=L.words.map(()=>0);refill();buildCW();ui();draw()}
 function cells(w){return[...w.w].map((ch,k)=>({r:w.r+(w.d==='d'?k:0),c:w.c+(w.d==='a'?k:0),ch}))}
 function buildCW(){let R=0,C=0;L.words.forEach(w=>cells(w).forEach(p=>{R=Math.max(R,p.r+1);C=Math.max(C,p.c+1)}));
  const g=$('cw');g.style.gridTemplateColumns=`repeat(${C},34px)`;g.innerHTML='';const map={};
@@ -71,15 +83,28 @@ function buildCW(){let R=0,C=0;L.words.forEach(w=>cells(w).forEach(p=>{R=Math.ma
  for(let r=0;r<R;r++)for(let c=0;c<C;c++){const m=map[r+','+c],d=document.createElement('div');d.className='c'+(m?' on':'');
   if(m){const done=m.ws.some(i=>solved[i]);if(done){d.textContent=m.ch;d.classList.add('hit')}if(starts[r+','+c])d.innerHTML+=`<small>${starts[r+','+c]}</small>`}g.appendChild(d)}
  $('clues').innerHTML=L.words.map((w,i)=>`<li class="${solved[i]?'done':''}"><b>${w.n} ${w.d==='a'?'Across':'Down'}</b> (${w.w.length}) ${w.clue}</li>`).join('')}
-function ui(){$('score').textContent=score;$('lvl').textContent=L.daily?`🗓 ${L.name}`:`Level ${li+1}/${LEVELS.length}: ${L.name}`;$('body').textContent=letters.join('')||'—'}
+function patt(i){const rv=revealed();let k=0;return cells(L.words[i]).map(p=>rv.has(p.r+','+p.c)?`<u>${p.ch}</u>`:(k<letters.length?`<b style="color:#7cf29a">${letters[k++]}</b>`:'_')).join(' ')}
+function ui(){$('score').textContent=score;$('lvl').textContent=L.daily?`🗓 ${L.name}`:`Level ${li+1}/${LEVELS.length}: ${L.name}`;
+ const cs=cands(),nx=[...nextSet()];
+ $('body').innerHTML=(spitMsg?`<div style="color:#ff6b6b">${spitMsg}</div>`:'')+(letters.length&&cs.length===1?'🎯 ':'')+cs.map(i=>`<div>${L.words[i].n} ${L.words[i].d==='a'?'Across':'Down'}: ${patt(i)}</div>`).join('')+`<div style="opacity:.7;font-size:13px">Next: ${nx.join(' / ')||'—'}</div>`}
 function step(){if(!started||state!=='play')return;dir=ndir;const h={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
  if(wall(h.x,h.y)||snake.slice(0,-1).some(s=>s.x===h.x&&s.y===h.y))return end(false);
- snake.unshift(h);const ti=tiles.findIndex(t=>t.x===h.x&&t.y===h.y);
- if(ti>=0){letters.push(tiles[ti].ch);tiles.splice(ti,1);score+=1;check();refill();ui()}else snake.pop();
- draw()}
-function check(){const s=letters.join('');for(let i=0;i<L.words.length;i++){if(solved[i])continue;const w=L.words[i].w;
- if(s.endsWith(w)){solved[i]=1;letters.splice(-w.length);snake.splice(snake.length-w.length);score+=w.length*10;flash=8;buildCW();
-  if(solved.every(Boolean))return end(true);return}}}
+ snake.unshift(h);spitMsg='';const ti=tiles.findIndex(t=>t.x===h.x&&t.y===h.y);
+ if(ti>=0){const ch=tiles[ti].ch;tiles.splice(ti,1);if(nextSet().has(ch)){letters.push(ch);score+=1;check()}else{snake.pop();score=Math.max(0,score-5);spit=3;spitMsg=`Spat out ${ch}! −5`;spawn(ch)}}else snake.pop();
+ if(state!=='play')return;refill();ui();draw()}
+function solve(i){solved[i]=1;score+=L.words[i].w.length*10;flash=8}
+function check(){const b=letters.join('');for(const i of cands()){if(needed(i)!==b)continue;
+ solve(i);const n=letters.length;if(n)snake.splice(snake.length-n);letters=[];
+ let more=true;while(more){more=false;L.words.forEach((w,j)=>{if(!solved[j]&&needed(j)===''){solve(j);more=true}})}
+ buildCW();if(solved.every(Boolean))return end(true);return}}
+
+
+
+
+
+
+
+
 function end(win){clearInterval(timer);clearInterval(tick);state='over';draw();tEnd=t0?Date.now()-t0:0;
  const nS=solved.filter(Boolean).length,nW=L.words.length,key=L.daily?'daily':'lvl'+li;
  st.best=st.best||{};const nb=score>(st.best[key]||0);if(nb)st.best[key]=score;
@@ -106,11 +131,12 @@ function pause(){if(state==='play'){state='paused';$('pause').textContent='Resum
 function draw(){ctx.clearRect(0,0,cv.width,cv.height);
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(wall(x,y)){ctx.fillStyle='#3a4680';ctx.beginPath();ctx.roundRect(x*T+2,y*T+2,T-4,T-4,6);ctx.fill()}
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 20px system-ui';
- tiles.forEach(t=>{ctx.fillStyle='#ffd166';ctx.beginPath();ctx.roundRect(t.x*T+5,t.y*T+5,T-10,T-10,6);ctx.fill();ctx.fillStyle='#1a2142';ctx.fillText(t.ch,t.x*T+T/2,t.y*T+T/2+1)});
- snake.forEach((s,i)=>{ctx.fillStyle=i===0?'#7cf29a':(flash>0?'#b9ffcb':'#45c46a');ctx.beginPath();ctx.roundRect(s.x*T+3,s.y*T+3,T-6,T-6,i===0?12:8);ctx.fill();
+ const NX=state==='menu'?new Set():nextSet();if(spit>0){ctx.save();ctx.translate((Math.random()-.5)*10,(Math.random()-.5)*6)}
+ tiles.forEach(t=>{const g=NX.has(t.ch);ctx.shadowColor='#ffd166';ctx.shadowBlur=g?18:0;ctx.fillStyle=g?'#ffd166':'#8a7d5c';ctx.beginPath();ctx.roundRect(t.x*T+5,t.y*T+5,T-10,T-10,6);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#1a2142';ctx.fillText(t.ch,t.x*T+T/2,t.y*T+T/2+1)});
+ snake.forEach((s,i)=>{ctx.fillStyle=i===0?(spit>0?'#ff6b6b':'#7cf29a'):(flash>0?'#b9ffcb':'#45c46a');ctx.beginPath();ctx.roundRect(s.x*T+3,s.y*T+3,T-6,T-6,i===0?12:8);ctx.fill();
   const ch=i>0?letters[letters.length-i]:null;if(ch){ctx.fillStyle='#0e1224';ctx.fillText(ch,s.x*T+T/2,s.y*T+T/2+1)}
   if(i===0){ctx.fillStyle='#0e1224';const cx=s.x*T+T/2+dir.x*6,cy=s.y*T+T/2+dir.y*6;ctx.beginPath();ctx.arc(cx-dir.y*6,cy-dir.x*6,3,0,7);ctx.arc(cx+dir.y*6,cy+dir.x*6,3,0,7);ctx.fill()}});
- if(flash>0)flash--;
+ if(flash>0)flash--;if(spit>0){spit--;ctx.restore()}
  const msg=state==='paused'?'PAUSED — Space/P to resume':(state==='play'&&!started?'Press an arrow key or swipe to start':'');
  if(msg){ctx.fillStyle='#0e1224cc';ctx.fillRect(0,H*T/2-28,W*T,56);ctx.fillStyle='#fff';ctx.font='bold 22px system-ui';ctx.fillText(msg,W*T/2,H*T/2)}}
 function turn(x,y){if(state!=='play')return;if(!started){started=true;t0=Date.now();clearInterval(tick);tick=setInterval(()=>{if(state==='play')$('time').textContent=fmt(Date.now()-t0)},500);if(x===-dir.x&&y===-dir.y){snake.reverse();}dir=ndir={x,y};return}if(x===-dir.x&&y===-dir.y)return;ndir={x,y}}
